@@ -1,14 +1,18 @@
 package com.aluracursos.literalura.principal;
 
+import com.aluracursos.literalura.model.DatosLibro;
+import com.aluracursos.literalura.model.Results;
 import com.aluracursos.literalura.service.ConsumoAPI;
 import com.aluracursos.literalura.service.ConvierteDatos;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class Principal {
-    private static final String URL_BASE = "https://gutendex.com/books";
+    private static final String URL_BASE = "https://gutendex.com/books/";
     private ConsumoAPI consumoAPI = new ConsumoAPI();
     private ConvierteDatos convierteDatos = new ConvierteDatos();
     private Scanner scanner = new Scanner(System.in);
@@ -36,9 +40,20 @@ public class Principal {
     private void buscarLibroPorTitulo() {
         System.out.println("Escriba el Titulo del Libro");
         String titulo = URLEncoder.encode(scanner.nextLine(), StandardCharsets.UTF_8);
-        json = consumoAPI.obtenerDatos(URL_BASE+"/?search="+ titulo);
-        System.out.println(json);
+        json = consumoAPI.obtenerDatos(URL_BASE+"?search="+ titulo);
+        //System.out.println(json);
+        //para recibir los datos
+        DatosLibro datosLibro = getDatosLibro(titulo);
+        System.out.println(datosLibro);
     }
+
+    private DatosLibro getDatosLibro(String titulo) {
+        Results datos = convierteDatos.obtenerDatos(json, Results.class);
+        return datos.listaDatosLibro().stream()
+                .filter(l -> l.titulo().toUpperCase().contains(titulo.toUpperCase()))
+                .findFirst().orElse(null);
+    }
+
 
 }
 
