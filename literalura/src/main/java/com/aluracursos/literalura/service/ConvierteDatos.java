@@ -16,6 +16,5 @@ public class ConvierteDatos implements IconvierteDatos{
         }catch(JacksonException e){
             throw new RuntimeException(e);
         }
-
     }
 }

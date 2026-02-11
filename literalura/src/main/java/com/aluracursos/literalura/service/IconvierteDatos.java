@@ -5,6 +5,6 @@ import tools.jackson.databind.ObjectMapper;
 
 public interface IconvierteDatos {
 
-    <T> T obtenerDatos(String json, Class <T> tClass );
+    <T> T obtenerDatos(String json, Class <T> tClass ) throws JacksonException;
 
 }
