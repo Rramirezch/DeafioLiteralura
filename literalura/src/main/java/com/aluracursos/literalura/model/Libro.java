@@ -1,24 +1,24 @@
 package com.aluracursos.literalura.model;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+
 import jakarta.persistence.*;
 
-import java.util.List;
 
 @Entity
 @Table(name = "libros")
 public class Libro {
 
-
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long Id;
     @Column(unique = true)
     private String titulo;
-    private String autor;
+    //private String autor;
     private String idioma;
     private Double totalDescargas;
+    @ManyToOne
+    //@JoinColumn(name = "autor_id") // Nombre de la columna en la BD
+    private Autor autor;
 
     // Constructor vacío requerido por JPA
     public Libro() {}
@@ -27,18 +27,72 @@ public class Libro {
     public Libro(DatosLibro datosLibro) {
         this.titulo = datosLibro.titulo();
         // Tomamos el primer autor de la lista y su nombre
-        this.autor = datosLibro.autor().isEmpty() ? "Autor desconocido" : datosLibro.autor().get(0).nombre();
+        //this.autor = datosLibro.autor().get(0).nombre();
         // Tomamos el primer idioma de la lista
         this.idioma = datosLibro.idioma().isEmpty() ? "Desconocido" : datosLibro.idioma().get(0);
         this.totalDescargas = datosLibro.totalDescargas();
     }
+    public Libro(DatosLibro d, Autor autor){
+        this.titulo = d.titulo();
+        this.idioma = d.idioma().get(0);
+        this.totalDescargas = d.totalDescargas();
+        this.autor = autor;
+    }
 
+    public Long getId() {
+        return Id;
+    }
 
-    // Getters (necesarios para que Spring/JPA lean los datos)
-    public Long getId() { return id; }
-    public String getTitulo() { return titulo; }
-    public String getNombreAutor() { return autor; }
-    public String getIdioma() { return idioma; }
-    public Double getTotalDescargas() { return totalDescargas; }
+    public void setId(Long id) {
+        Id = id;
+    }
 
+    public String getTitulo() {
+        return titulo;
+    }
+
+    public void setTitulo(String titulo) {
+        this.titulo = titulo;
+    }
+
+    /*public String getAutor() {
+        return autor;
+    }
+
+    public void setAutor(String autor) {
+        this.autor = autor;
+    }*/
+
+    public String getIdioma() {
+        return idioma;
+    }
+
+    public void setIdioma(String idioma) {
+        this.idioma = idioma;
+    }
+
+    public Double getTotalDescargas() {
+        return totalDescargas;
+    }
+
+    public void setTotalDescargas(Double totalDescargas) {
+        this.totalDescargas = totalDescargas;
+    }
+
+    public Autor getAutor() {
+        return autor;
+    }
+
+    public void setAutor(Autor autor) {
+        this.autor = autor;
+    }
+
+    @Override
+    public String toString() {
+        return
+                ", titulo='" + titulo + '\'' +
+                ", autor='" + autor + '\'' +
+                ", idioma='" + idioma + '\'' +
+                ", totalDescargas=" + totalDescargas;
+    }
 }
