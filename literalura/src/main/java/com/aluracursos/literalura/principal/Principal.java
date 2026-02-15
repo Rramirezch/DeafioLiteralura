@@ -8,10 +8,7 @@ import com.aluracursos.literalura.service.ConvierteDatos;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Principal {
@@ -39,6 +36,10 @@ public class Principal {
                     Seleccione una Opcion
                     1- Bucar Libro por Titulo
                     2- Buscar libro en B.D.
+                    3- Mostrar Libros Registrados en B.D.
+                    4- Mostrar Autores registrados en B.D.
+                    5- Mostrar Libros Por Idioma
+                    6- Mostrar Autores Vivos en YYYY año
                     0- Salir
                     """;
             System.out.println(menu);
@@ -51,6 +52,17 @@ public class Principal {
                 case 2:
                     buscarLibroEnBD();
                     break;
+                case 3:
+                    mostrarLibrosRegistrados();
+                    break;
+                case 4:
+                    mostrarAutoresRegistrados();
+                    break;
+                case 5:
+                    mostrarLibrosPorIdioma();
+                    break;
+                case 6:
+                    mostrarAutoresVivosEnYYYY();
                 case 0:
                     System.out.println("Cerrando la aplicación...");
                     break;
@@ -58,10 +70,7 @@ public class Principal {
                     System.out.println("Opcion no valida");
                     break;
             }
-
-
         }
-
     }
 
     public void buscarLibroPorTitulo() {
@@ -127,4 +136,85 @@ public class Principal {
         }
 
     }
+
+    public void mostrarLibrosRegistrados() {
+        List<Libro> libros = repositorio.findAll();
+        libros.stream()
+                .sorted(Comparator.comparing(Libro::getTitulo))
+                .forEach(l ->
+                        System.out.printf("""
+                                        ------- LIBRO -------
+                                        Titulo: %s
+                                        Autor: %s
+                                        Idioma: %s
+                                        Total descargas: %s
+                                        ---------------------
+                                        """,
+                                l.getTitulo(),
+                                l.getAutor().getNombre(), // Accedemos al nombre a través del objeto Autor
+                                l.getIdioma(),
+                                l.getTotalDescargas()
+                        ));
+        }
+
+    public void mostrarAutoresRegistrados(){
+        List<Autor>autores = repositoryo.findAll();
+        autores.stream()
+                .sorted(Comparator.comparing(Autor::getNombre))
+                .forEach(a ->
+                        System.out.printf("""
+                                    ------- AUTOR -------
+                                    Nombre: %s
+                                    Fecha Nacimiento: %s
+                                    Fecha Muerte: %s
+                                    ---------------------
+                                    """,
+                                a.getNombre(),
+                                a.getFechaNacimiento(),
+                                a.getFechaMuerte()
+                        ));
+    }
+    public void mostrarLibrosPorIdioma(){
+        System.out.println("indique el idioma que quiere listar");
+        System.out.println("Asi:\n en - para Ingles \n es - para Español \n fr - Para Frances \n pt - para portugues ");
+        var idioma = scanner.nextLine();
+        List<Libro> libros = repositorio.libroPorIdioma(idioma);
+        libros.stream()
+                .sorted(Comparator.comparing(Libro::getTitulo))
+                .forEach(l ->
+                        System.out.printf("""
+                                        ------- LIBRO -------
+                                        Titulo: %s
+                                        Autor: %s
+                                        Idioma: %s
+                                        Total descargas: %s
+                                        ---------------------
+                                        """,
+                                l.getTitulo(),
+                                l.getAutor().getNombre(), // Accedemos al nombre a través del objeto Autor
+                                l.getIdioma(),
+                                l.getTotalDescargas()
+                        ));
+    }
+    public void mostrarAutoresVivosEnYYYY(){
+        System.out.println("Digite el año (yyyy) que desea saber los autores Vivos");
+        var year = scanner.nextInt();
+        List<Autor> autores = repositoryo.autoresVivos(year);
+        autores.stream()
+                .forEach(a ->
+                        System.out.printf("""
+                                    ------- AUTOR -------
+                                    Nombre: %s
+                                    Fecha Nacimiento: %s
+                                    Fecha Muerte: %s
+                                    ---------------------
+                                    """,
+                                a.getNombre(),
+                                a.getFechaNacimiento(),
+                                a.getFechaMuerte()
+                        ));
+
+    }
+
+
 }
