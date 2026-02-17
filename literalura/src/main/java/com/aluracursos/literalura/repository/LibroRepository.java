@@ -19,6 +19,8 @@ public interface LibroRepository extends JpaRepository<Libro, Long> {
 
    Optional<Libro> findByTituloContainsIgnoreCase(String titulo);
 
+    List<Libro> findTop3ByOrderByTotalDescargasDesc();
+
 
 
 }

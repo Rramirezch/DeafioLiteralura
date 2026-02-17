@@ -53,6 +53,8 @@ public class Principal {
                     4- Mostrar Autores registrados en B.D.
                     5- Mostrar Libros Por Idioma
                     6- Mostrar Autores Vivos en YYYY año
+                    7- Ver estadisticas de los libros en B.D.
+                    8- ver top 3 de Libros
                     0- Salir
                     """;
             System.out.println(menu);
@@ -77,6 +79,11 @@ public class Principal {
                 case 6:
                     mostrarAutoresVivosEnYYYY();
                     break;
+                case 7:
+                    mostrarEstadisticas();
+                    break;
+                case 8:
+                    top3DemayoresDescargados();
                 case 0:
                     System.out.println("Cerrando la aplicación...");
                     break;
@@ -263,6 +270,51 @@ public class Principal {
                         """, a.getNombre(), a.getFechaNacimiento(), a.getFechaMuerte(), libros);
             });
         }
+    }
+
+    public void mostrarEstadisticas() {
+        List<Libro> libros = repositorio.findAll();
+
+        if (libros.isEmpty()) {
+            System.out.println("No hay datos suficientes para generar estadísticas.");
+            return;
+        }
+
+        DoubleSummaryStatistics est = libros.stream()
+                .filter(l -> l.getTotalDescargas() > 0)
+                .collect(Collectors.summarizingDouble(Libro::getTotalDescargas));
+
+        System.out.println("""
+            --------- ESTADÍSTICAS ---------
+            Cantidad de libros: %d
+            Promedio de descargas: %.2f
+            Máximo de descargas: %.2f
+            Mínimo de descargas: %.2f
+            --------------------------------
+            """.formatted(est.getCount(), est.getAverage(), est.getMax(), est.getMin()));
+    }
+    public void top3DemayoresDescargados(){
+        List<Libro> libros = repositorio.findTop3ByOrderByTotalDescargasDesc();
+
+        if (libros.isEmpty()) {
+            System.out.println("No hay datos suficientes para generar estadísticas.");
+            return;
+        }
+        libros.stream()
+                .forEach(l ->
+                        System.out.printf("""
+                                            ------- LIBRO -------
+                                            Titulo: %s
+                                            Autor: %s
+                                            Idioma: %s
+                                            Total descargas: %s
+                                            ---------------------
+                                            """,
+                                l.getTitulo(),
+                                l.getAutor().getNombre(), // Accedemos al nombre a través del objeto Autor
+                                l.getIdioma(),
+                                l.getTotalDescargas()
+                        ));
     }
 
 }
