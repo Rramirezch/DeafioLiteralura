@@ -13,25 +13,23 @@ public class Libro {
     private Long Id;
     @Column(unique = true)
     private String titulo;
-    //private String autor;
     private String idioma;
     private Double totalDescargas;
     @ManyToOne
-    //@JoinColumn(name = "autor_id") // Nombre de la columna en la BD
     private Autor autor;
 
     // Constructor vacío requerido por JPA
     public Libro() {}
 
     // Constructor que toma el Record de la API y lo convierte en Entidad
-    public Libro(DatosLibro datosLibro) {
+    /*public Libro(DatosLibro datosLibro) {
         this.titulo = datosLibro.titulo();
         // Tomamos el primer autor de la lista y su nombre
         //this.autor = datosLibro.autor().get(0).nombre();
         // Tomamos el primer idioma de la lista
         this.idioma = datosLibro.idioma().isEmpty() ? "Desconocido" : datosLibro.idioma().get(0);
         this.totalDescargas = datosLibro.totalDescargas();
-    }
+    }*/
     public Libro(DatosLibro d, Autor autor){
         this.titulo = d.titulo();
         this.idioma = d.idioma().get(0);

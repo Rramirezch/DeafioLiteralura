@@ -1,7 +1,6 @@
 package com.aluracursos.literalura.model;
 import jakarta.persistence.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -9,12 +8,12 @@ import java.util.List;
 public class Autor {
 
     @Id
-    @GeneratedValue(strategy =  GenerationType.IDENTITY)
+    @GeneratedValue(strategy =  GenerationType.IDENTITY )
     private Long Id;
     private String nombre;
     private String fechaNacimiento;
     private String fechaMuerte;
-    @OneToMany(mappedBy = "autor", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "autor", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
 
     private List<Libro> libros;
 

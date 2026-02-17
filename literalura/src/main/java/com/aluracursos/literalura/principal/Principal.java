@@ -15,7 +15,6 @@ public class Principal {
     private static final String URL_BASE = "https://gutendex.com/books/";
     private final ConsumoAPI consumoAPI = new ConsumoAPI();
     private final ConvierteDatos convierteDatos = new ConvierteDatos();
-    private final List<DatosAutor> autores = new ArrayList<>();
     private List<DatosLibro> datosLibros = new ArrayList<>();
     private final Scanner scanner = new Scanner(System.in);
     private final LibroRepository repositorio;
@@ -28,13 +27,27 @@ public class Principal {
         List<Autor> autors = new ArrayList<>();
     }
 
+    private static void accept(Autor u) {
+        System.out.printf("""
+                        ------- AUTOR -------
+                        Nombre: %s
+                        Fecha Nacimiento: %s
+                        Fecha Muerte: %s
+                        ---------------------
+                        """,
+                u.getNombre(),
+                u.getFechaNacimiento(),
+                u.getFechaMuerte()
+        );
+    }
+
     public void mostrarMenu() {
         var opcion = -1;
         while (opcion != 0) {
             var menu = """
                     ***************************
                     Seleccione una Opcion
-                    1- Bucar Libro por Titulo
+                    1- Bucar Libro por Titulo en la API Gutendex
                     2- Buscar libro en B.D.
                     3- Mostrar Libros Registrados en B.D.
                     4- Mostrar Autores registrados en B.D.
@@ -63,6 +76,7 @@ public class Principal {
                     break;
                 case 6:
                     mostrarAutoresVivosEnYYYY();
+                    break;
                 case 0:
                     System.out.println("Cerrando la aplicación...");
                     break;
@@ -76,40 +90,52 @@ public class Principal {
     public void buscarLibroPorTitulo() {
         var json = consumoAPI.obtenerDatos(URL_BASE);
         System.out.println("Ingrese el nombre del libro a buscar");
-        var tituloLibro = URLEncoder.encode(scanner.nextLine(), StandardCharsets.UTF_8);
-        //adecuamos la api
-        json = consumoAPI.obtenerDatos(URL_BASE + "?search=" + tituloLibro);
-        var datosBusqueda = convierteDatos.obtenerDatos(json, Results.class);
-        Optional<DatosLibro> libroBuscado = datosBusqueda.resultados().stream()
-                .filter(l -> l.titulo().toUpperCase().contains(tituloLibro.toUpperCase()))
-                .findFirst();
-        if (libroBuscado.isPresent()) {
-            System.out.println("Libro encontrado");
-            System.out.println(libroBuscado.get());
-        } else {
-            System.out.println("No se encontro el libro");
-        }
 
-        datosLibros = datosBusqueda.resultados();
-        Optional<Libro> found = Optional.empty();
-        for (DatosLibro d : datosLibros) {
-            if (!d.autor().isEmpty()) {
-                DatosAutor datosAutor = d.autor().get(0);
-                Autor autor = new Autor(datosAutor);
-                repositoryo.save(autor);
-                Libro libro = new Libro(d, autor);
-                repositorio.save(libro);
-                found = Optional.of(libro);
-                System.out.println("Se guardó el libro " + libroBuscado.get().titulo());
-                break;
+        var tituloLibro = URLEncoder.encode(scanner.nextLine(), StandardCharsets.UTF_8);
+        Optional<Libro> libroExistente = repositorio.findByTituloContainsIgnoreCase(tituloLibro);
+        if (libroExistente.isPresent()) {
+            System.out.println("El libro '" + tituloLibro + "' ya está registrado en la base de datos.");
+
+        } else {
+            //adecuamos la api
+            json = consumoAPI.obtenerDatos(URL_BASE + "?search=" + tituloLibro);
+            var datosBusqueda = convierteDatos.obtenerDatos(json, Results.class);
+            Optional<DatosLibro> libroBuscado = datosBusqueda.resultados().stream()
+                    .filter(l -> l.titulo().toUpperCase().contains(tituloLibro.toUpperCase()))
+                    .findFirst();
+            if (libroBuscado.isEmpty()) {
+                System.out.println("No se encontro el libro");
+            } else {
+                System.out.println("Libro encontrado");
+                System.out.println(libroBuscado.get());
+                datosLibros = datosBusqueda.resultados();
+                Optional<Libro> found = Optional.empty();
+
+                for (DatosLibro d : datosLibros) {
+                    // 2. Si no existe, verificamos el autor y guardamos
+                    if (!d.autor().isEmpty()) {
+                        DatosAutor datosAutor = d.autor().get(0);
+                        // 1. BUSCAR si el autor ya existe en la base de datos
+                        Autor autor = repositoryo.findByNombreIgnoreCase(datosAutor.nombre())
+                                .orElseGet(() -> {
+                                    // 2. Si NO existe, creamos uno nuevo y lo guardamos
+                                    Autor nuevoAutor = new Autor(datosAutor);
+                                    return repositoryo.save(nuevoAutor);
+                                });
+                        Libro libro = new Libro(d, autor);
+                        repositorio.save(libro);
+
+                        found = Optional.of(libro);
+                        System.out.println("Se guardó el libro: " + libro.getTitulo());
+                        break; // Detenemos el bucle tras guardar el libro con éxito
+                    } else {
+                        System.out.println("El libro '" + d.titulo() + "' no tiene autor y no se puede registrar.");
+                    }
+                }
             }
         }
-        if (found.isPresent()) {
-            System.out.println("Proceso finalizado con éxito para: " + found.get().getTitulo());
-        } else {
-            System.out.println("No se encontraron libros válidos para guardar.");
-        }
     }
+
 
     public void buscarLibroEnBD() {
         System.out.println("Escribe el nombre del libro que desea buscar");
@@ -155,66 +181,88 @@ public class Principal {
                                 l.getIdioma(),
                                 l.getTotalDescargas()
                         ));
-        }
+    }
 
-    public void mostrarAutoresRegistrados(){
-        List<Autor>autores = repositoryo.findAll();
+    public void mostrarAutoresRegistrados() {
+        List<Autor> autores = repositoryo.findAllAutoresWithLibros();
+
+        Set<String> nombresUnicos = new HashSet<>();
         autores.stream()
                 .sorted(Comparator.comparing(Autor::getNombre))
-                .forEach(a ->
-                        System.out.printf("""
+                .filter(a -> nombresUnicos.add(a.getNombre()))
+                .forEach(a -> {
+                    String titulosLibros = a.getLibros().stream()
+                            .map(Libro::getTitulo)
+                            .collect(Collectors.joining(", "));
+                    System.out.printf("""
                                     ------- AUTOR -------
                                     Nombre: %s
                                     Fecha Nacimiento: %s
                                     Fecha Muerte: %s
+                                    Libros escritos: [%s]
                                     ---------------------
                                     """,
-                                a.getNombre(),
-                                a.getFechaNacimiento(),
-                                a.getFechaMuerte()
-                        ));
+                            a.getNombre(),
+                            a.getFechaNacimiento(),
+                            a.getFechaMuerte(),
+                            titulosLibros
+                    );
+    });
+
     }
-    public void mostrarLibrosPorIdioma(){
+
+    public void mostrarLibrosPorIdioma() {
         System.out.println("indique el idioma que quiere listar");
         System.out.println("Asi:\n en - para Ingles \n es - para Español \n fr - Para Frances \n pt - para portugues ");
         var idioma = scanner.nextLine();
         List<Libro> libros = repositorio.libroPorIdioma(idioma);
-        libros.stream()
-                .sorted(Comparator.comparing(Libro::getTitulo))
-                .forEach(l ->
-                        System.out.printf("""
-                                        ------- LIBRO -------
-                                        Titulo: %s
-                                        Autor: %s
-                                        Idioma: %s
-                                        Total descargas: %s
-                                        ---------------------
-                                        """,
-                                l.getTitulo(),
-                                l.getAutor().getNombre(), // Accedemos al nombre a través del objeto Autor
-                                l.getIdioma(),
-                                l.getTotalDescargas()
-                        ));
+        if (libros.isEmpty()) {
+            System.out.println("No hay libros registrados en- " + idioma +" -en la base de datos.");
+        } else {
+
+            libros.stream()
+                    .sorted(Comparator.comparing(Libro::getTitulo))
+                    .forEach(l ->
+                            System.out.printf("""
+                                            ------- LIBRO -------
+                                            Titulo: %s
+                                            Autor: %s
+                                            Idioma: %s
+                                            Total descargas: %s
+                                            ---------------------
+                                            """,
+                                    l.getTitulo(),
+                                    l.getAutor().getNombre(), // Accedemos al nombre a través del objeto Autor
+                                    l.getIdioma(),
+                                    l.getTotalDescargas()
+                            ));
+        }
     }
-    public void mostrarAutoresVivosEnYYYY(){
-        System.out.println("Digite el año (yyyy) que desea saber los autores Vivos");
+
+    public void mostrarAutoresVivosEnYYYY() {
+        System.out.println("Digite el año (yyyy) para mostrar los autores vivos");
         var year = scanner.nextInt();
         List<Autor> autores = repositoryo.autoresVivos(year);
-        autores.stream()
-                .forEach(a ->
-                        System.out.printf("""
-                                    ------- AUTOR -------
-                                    Nombre: %s
-                                    Fecha Nacimiento: %s
-                                    Fecha Muerte: %s
-                                    ---------------------
-                                    """,
-                                a.getNombre(),
-                                a.getFechaNacimiento(),
-                                a.getFechaMuerte()
-                        ));
+        if (autores.isEmpty()) {
+            System.out.println("No se encontraron autores registrados vivos en el año."+ year);
+        } else {
+            Set<String> nombresImpresos = new HashSet<>();
+            autores.stream()
+            .filter(a -> nombresImpresos.add(a.getNombre()))
+            /*autores*/.forEach(a -> {
+                String libros = a.getLibros().stream()
+                        .map(Libro::getTitulo)
+                        .collect(Collectors.joining(", "));
 
+                System.out.printf("""
+                        Autor: %s
+                        Fecha de Nacimiento: %s
+                        Fecha de Fallecimiento: %s
+                        Libros: [%s]
+                        ----------------------------------
+                        """, a.getNombre(), a.getFechaNacimiento(), a.getFechaMuerte(), libros);
+            });
+        }
     }
-
 
 }
