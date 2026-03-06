@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
 
 public class Principal {
     private static final String URL_BASE = "https://gutendex.com/books/";
-    private final ConsumoAPI consumoAPI = new ConsumoAPI();
-    private final ConvierteDatos convierteDatos = new ConvierteDatos();
+    private ConsumoAPI consumoAPI = new ConsumoAPI();
+    private ConvierteDatos convierteDatos = new ConvierteDatos();
     private List<DatosLibro> datosLibros = new ArrayList<>();
     private final Scanner scanner = new Scanner(System.in);
     private final LibroRepository repositorio;
@@ -27,7 +27,7 @@ public class Principal {
         List<Autor> autors = new ArrayList<>();
     }
 
-    private static void accept(Autor u) {
+    /*private static void accept(Autor u) {
         System.out.printf("""
                         ------- AUTOR -------
                         Nombre: %s
@@ -39,11 +39,11 @@ public class Principal {
                 u.getFechaNacimiento(),
                 u.getFechaMuerte()
         );
-    }
+    }*/
 
     public void mostrarMenu() {
         var opcion = -1;
-        while (opcion != 0) {
+        while (opcion != 0 ) {
             var menu = """
                     ***************************
                     Seleccione una Opcion
@@ -95,54 +95,51 @@ public class Principal {
     }
 
     public void buscarLibroPorTitulo() {
-        var json = consumoAPI.obtenerDatos(URL_BASE);
-        System.out.println("Ingrese el nombre del libro a buscar");
+        System.out.println("Ingrese el nombre del libro a buscar:");
+        var nombreLibro = scanner.nextLine(); // Entrada limpia para la Db
 
-        var tituloLibro = URLEncoder.encode(scanner.nextLine(), StandardCharsets.UTF_8);
-        Optional<Libro> libroExistente = repositorio.findByTituloContainsIgnoreCase(tituloLibro);
+        // 1. Buscamos en la base de datos local
+        Optional<Libro> libroExistente = repositorio.findByTituloContainsIgnoreCase(nombreLibro);
+
         if (libroExistente.isPresent()) {
-            System.out.println("El libro '" + tituloLibro + "' ya está registrado en la base de datos.");
+            System.out.println("El libro ya está registrado:");
+            System.out.println(libroExistente.get());
+            return; // Salimos temprano si ya existe
+        }
 
-        } else {
-            //adecuamos la api
-            json = consumoAPI.obtenerDatos(URL_BASE + "?search=" + tituloLibro);
-            var datosBusqueda = convierteDatos.obtenerDatos(json, Results.class);
-            Optional<DatosLibro> libroBuscado = datosBusqueda.resultados().stream()
-                    .filter(l -> l.titulo().toUpperCase().contains(tituloLibro.toUpperCase()))
-                    .findFirst();
-            if (libroBuscado.isEmpty()) {
-                System.out.println("No se encontro el libro");
+        // 2. Si no está en DB, preparamos la búsqueda en la API
+        var queryCodificada = URLEncoder.encode(nombreLibro, StandardCharsets.UTF_8);
+        var json = consumoAPI.obtenerDatos(URL_BASE + "?search=" + queryCodificada);
+        var datosBusqueda = convierteDatos.obtenerDatos(json, Results.class);
+
+        // 3. Filtramos el primer resultado que coincida
+        String finalNombreLibro = nombreLibro;
+        Optional<DatosLibro> libroBuscado = datosBusqueda.resultados().stream()
+                //.filter(l -> l.titulo().toLowerCase().contains(finalNombreLibro.toLowerCase()))
+                .findFirst();
+
+        if (libroBuscado.isPresent()) {
+            DatosLibro d = libroBuscado.get();
+
+            if (!d.autor().isEmpty()) {
+                DatosAutor datosAutor = d.autor().get(0);
+
+                // Lógica de Autor: Buscar o Crear
+                Autor autor = repositoryo.findByNombreIgnoreCase(datosAutor.nombre())
+                        .orElseGet(() -> repositoryo.save(new Autor(datosAutor)));
+
+                // Guardar Libro
+                Libro nuevoLibro = new Libro(d, autor);
+                repositorio.save(nuevoLibro);
+
+                System.out.println("Libro encontrado y guardado: " + nuevoLibro.getTitulo());
             } else {
-                System.out.println("Libro encontrado");
-                System.out.println(libroBuscado.get());
-                datosLibros = datosBusqueda.resultados();
-                Optional<Libro> found = Optional.empty();
-
-                for (DatosLibro d : datosLibros) {
-                    // 2. Si no existe, verificamos el autor y guardamos
-                    if (!d.autor().isEmpty()) {
-                        DatosAutor datosAutor = d.autor().get(0);
-                        // 1. BUSCAR si el autor ya existe en la base de datos
-                        Autor autor = repositoryo.findByNombreIgnoreCase(datosAutor.nombre())
-                                .orElseGet(() -> {
-                                    // 2. Si NO existe, creamos uno nuevo y lo guardamos
-                                    Autor nuevoAutor = new Autor(datosAutor);
-                                    return repositoryo.save(nuevoAutor);
-                                });
-                        Libro libro = new Libro(d, autor);
-                        repositorio.save(libro);
-
-                        found = Optional.of(libro);
-                        System.out.println("Se guardó el libro: " + libro.getTitulo());
-                        break; // Detenemos el bucle tras guardar el libro con éxito
-                    } else {
-                        System.out.println("El libro '" + d.titulo() + "' no tiene autor y no se puede registrar.");
-                    }
-                }
+                System.out.println("El libro encontrado no tiene autor registrado y no se guardará.");
             }
+        } else {
+            System.out.println("No se encontró ningún libro con ese nombre en Gutendex.");
         }
     }
-
 
     public void buscarLibroEnBD() {
         System.out.println("Escribe el nombre del libro que desea buscar");
